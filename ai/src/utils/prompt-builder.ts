@@ -51,7 +51,7 @@ MANDATORY Rules for code changes:
 - Format using triple backticks with the appropriate language identifier
 - CRITICAL: Always specify the complete file path relative to the project root
 - For new files, add "(new file)" after the path
-- Before any code block, include a line like "File: /path/to/file.ext" to indicate which file the code belongs to
+- Before every code block, include a line that shows FULL Path to the file like "File: /path/to/file.ext" to indicate which file the code belongs to
 - Keep responses brief and to the point
 - Use aider diff format: \`<<<<<<< SEARCH\` / \`=======\` / \`>>>>>>> REPLACE\` blocks inside code blocks
 - If multiple search/replace blocks are for the same file, group them in the same code block
@@ -59,6 +59,9 @@ MANDATORY Rules for code changes:
 
 🚨 NEVER show complete files for EXISTING files. ALWAYS use "// ... existing code ..." comments for unchanged sections.
 🚨 For NEW FILES: Show the complete file content in the REPLACE block with an empty SEARCH block.
+🚨 NEVER use "..." to abbreviate actual code. Every code line in SEARCH/REPLACE blocks must be COMPLETE.
+   - "..." is ONLY allowed inside comment lines like "// ... existing code ..."
+   - Do NOT write abbreviated expressions like \`cva(...)\`, \`function(...)\`, \`<Component ...>\`, \`{...}\` — write the COMPLETE line of code or skip the unchanged region entirely with a comment.
 
 Example format for additions:
 File: /src/components/Button.tsx

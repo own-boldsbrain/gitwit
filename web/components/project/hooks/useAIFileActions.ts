@@ -1,6 +1,6 @@
-import { apiClient } from "@/server/client"
 import { fileRouter } from "@/lib/api"
 import { DiffSession, TTab } from "@/lib/types"
+import { apiClient } from "@/server/client"
 import { useAppStore } from "@/store/context"
 import * as monaco from "monaco-editor"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -159,10 +159,19 @@ export function useAIFileActions({
     async ({
       filePath,
       code,
+      isNew,
     }: PrecomputeMergeArgs): Promise<FileMergeResult> => {
       const normalizedPath = normalizePath(filePath)
 
-      const originalCode = await getCurrentFileContent(normalizedPath)
+      const originalCode = isNew
+        ? ""
+        : await getCurrentFileContent(normalizedPath)
+
+      if (!isNew && originalCode === "") {
+        throw new Error(
+          `Failed to load original content for ${normalizedPath}. The file may not exist or the path may be incorrect.`,
+        )
+      }
 
       try {
         const res = await apiClient.ai["merge-code"].$post({
@@ -217,7 +226,6 @@ export function useAIFileActions({
         const matchBy = (tab: TTab) => pathMatchesTab(normalizedTargetPath, tab)
         targetTab = tabs.find(matchBy)
 
-        // If tab doesn't exist, create it
         if (!targetTab) {
           const fileName =
             normalizedTargetPath.split("/").pop() || normalizedTargetPath
@@ -229,26 +237,17 @@ export function useAIFileActions({
           }
         }
 
-        // Get current activeTab from tabs array (more reliable than closure)
         const currentActiveTab =
           tabs.find((t) => t.id === activeTab?.id) || activeTab
-        // Check if target tab is currently active (compare with current activeTab)
         const isTargetActive = currentActiveTab
           ? matchBy(currentActiveTab)
           : false
 
         if (!isTargetActive) {
-          pendingDiffsQueueRef.current.set(normalizedTargetPath, {
-            code,
-            language,
-            options: {
-              ...options,
-              targetFilePath: normalizedTargetPath,
-            },
-          })
-          // Open and activate the target file (openFile handles tab creation and activation)
           openFile(normalizedTargetPath)
-          return
+          // Don't return early — proceed to merge + apply with targetFileId.
+          // The merge is async so by the time it resolves the EditorPanel
+          // should have had time to mount. If not, the retry mechanism handles it.
         }
       } else {
         // No target path specified, use active tab
@@ -256,12 +255,14 @@ export function useAIFileActions({
       }
 
       if (!targetTab) {
+        console.log("no target tab")
         return
       }
 
       // Use target path if provided, otherwise use target tab
       const targetPath = normalizedTargetPath || normalizePath(targetTab.id)
       try {
+
         const mergeResult = await resolveMergeResult(
           targetPath,
           code,
@@ -270,6 +271,7 @@ export function useAIFileActions({
           getCurrentFileContent,
           options,
         )
+
 
         // Apply to Editor
         if (mergeResult) {
@@ -307,45 +309,60 @@ export function useAIFileActions({
     ],
   )
 
-  // Retry pending diffs when active tab changes; also retry ready-to-apply when editor mounts
+  // Retry all pending ready-to-apply diffs when editors mount or tick fires.
+  // Processes files one at a time: activates each file's tab to ensure
+  // Dockview renders its EditorPanel (inactive panels may not mount).
   useEffect(() => {
-    if (!activeTab?.id) return
+    if (pendingApplyReadyRef.current.size === 0) return
 
-    const normalizedPath = normalizePath(activeTab.id)
-
-    // First try ready-to-apply (editor was not ready on first attempt)
-    const ready = pendingApplyReadyRef.current.get(normalizedPath)
-    if (ready) {
+    // First pass: try applying all entries that already have handlers ready
+    for (const [filePath, ready] of Array.from(
+      pendingApplyReadyRef.current.entries(),
+    )) {
       const applied = handleApplyCodeWithDecorations(
         ready.mergedCode,
         ready.originalCode,
-        normalizedPath,
+        filePath,
       )
       if (applied !== null) {
-        pendingApplyReadyRef.current.delete(normalizedPath)
-        retryCountRef.current = 0
-      } else if (retryCountRef.current < 5) {
-        retryCountRef.current += 1
-        const id = setTimeout(() => setRetryApplyTick((t) => t + 1), 150)
-        return () => clearTimeout(id)
-      } else {
-        pendingApplyReadyRef.current.delete(normalizedPath)
-        retryCountRef.current = 0
+        pendingApplyReadyRef.current.delete(filePath)
       }
     }
 
-    // Then process queue (tab switch case)
+    if (pendingApplyReadyRef.current.size === 0) {
+      retryCountRef.current = 0
+      return
+    }
+
+    // Second pass: for the first file still pending, activate its tab so
+    // Dockview renders the EditorPanel (it won't mount while inactive).
+    if (retryCountRef.current > 2) {
+      const [nextFilePath] = pendingApplyReadyRef.current.entries().next()
+        .value as [string, unknown]
+      openFile(nextFilePath)
+    }
+
+    if (retryCountRef.current < 20) {
+      retryCountRef.current += 1
+      const delay = Math.min(200 * Math.ceil(retryCountRef.current / 3), 600)
+      const id = setTimeout(() => setRetryApplyTick((t) => t + 1), delay)
+      return () => clearTimeout(id)
+    }
+
+    pendingApplyReadyRef.current.clear()
+    retryCountRef.current = 0
+  }, [handleApplyCodeWithDecorations, retryApplyTick, openFile])
+
+  // Process legacy pending diffs queue when active tab changes
+  useEffect(() => {
+    if (!activeTab?.id) return
+    const normalizedPath = normalizePath(activeTab.id)
     const pending = pendingDiffsQueueRef.current.get(normalizedPath)
     if (pending) {
       pendingDiffsQueueRef.current.delete(normalizedPath)
       handleApplyCodeFromChat(pending.code, pending.language, pending.options)
     }
-  }, [
-    activeTab?.id,
-    handleApplyCodeFromChat,
-    handleApplyCodeWithDecorations,
-    retryApplyTick,
-  ])
+  }, [activeTab?.id, handleApplyCodeFromChat, handleApplyCodeWithDecorations])
 
   const enqueueFileContentUpdate = useCallback(
     (filePath: string, content: string) => {

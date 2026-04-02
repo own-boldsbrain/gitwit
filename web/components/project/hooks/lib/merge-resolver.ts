@@ -1,5 +1,5 @@
-import { apiClient } from "@/server/client"
-import { FileMergeResult } from "../../chat/lib/types"
+import { apiClient } from "@/server/client";
+import { FileMergeResult } from "../../chat/lib/types";
 
 interface MergeStatusAccessor {
   getMergeStatus?: (

@@ -12,7 +12,7 @@ import { useAIFileActions } from "../../hooks/useAIFileActions"
  * This bridges the new Dockview layout with the existing chat/diff functionality
  */
 export function useChatPanelHandlers() {
-  const { dockRef, getHandlers } = useEditor()
+  const { dockRef, getHandlers, handlersVersion } = useEditor()
   const {
     project: { id: projectId },
   } = useProjectContext()
@@ -82,12 +82,18 @@ export function useChatPanelHandlers() {
       }
 
       const handlers = getHandlers(fileIdToUse)
+      if (handlers) {
+        //handlers
+      }
+      else {
+        console.log("no handlers")
+      }
       if (handlers?.handleApplyCode) {
         return handlers.handleApplyCode(mergedCode, originalCode)
       }
       return null
     },
-    [activeFileId, getHandlers],
+    [activeFileId, getHandlers, handlersVersion],
   )
 
   // updateFileDraft adapter - get setDraft from store

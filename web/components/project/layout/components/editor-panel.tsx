@@ -107,6 +107,7 @@ export function EditorPanel(props: IDockviewPanelProps<EditorPanelParams>) {
 
   // Register handlers when editorRef or handlers change
   useEffect(() => {
+
     if (!fileId) return
 
     registerHandlers(fileId, {
