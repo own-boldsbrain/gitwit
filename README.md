@@ -152,6 +152,7 @@ Follow these steps to call the `qwen.qwen3-32b-v1:0` model through Amazon Bedroc
 1. **Create an AWS account** – Sign up at [aws.amazon.com](https://aws.amazon.com/) if needed.
 2. **Create an IAM user with programmatic access** – In the AWS Console, open IAM → `Users` → `Add users`, choose a name, and enable "Programmatic access".
 3. **Attach Bedrock permissions** – Assign a policy similar to:
+
    ```json
    {
      "Version": "2012-10-17",
@@ -164,6 +165,7 @@ Follow these steps to call the `qwen.qwen3-32b-v1:0` model through Amazon Bedroc
      ]
    }
    ```
+
 4. **Create and store the access keys** – Download the access key ID and secret access key once, keep them in a password manager, and map them to `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
 5. **Configure your environment** – Set `AWS_REGION`, optionally override `AWS_MODEL_ID`, and confirm your Bedrock calls reference `qwen.qwen3-32b-v1:0` (or another valid Qwen model ID you prefer).
 
@@ -265,6 +267,7 @@ To get a Personal Access Token (PAT):
 3. Give it a descriptive name (e.g., "GitWit Testing")
 4. Select the necessary scopes (typically `repo`, `user`, `read:org`)
 5. Generate the token and copy it securely
+
 </details>
 
 ### Add Deployments
@@ -374,10 +377,10 @@ export const template = Template({
   .runCmd("npm install")
 ```
 
-3. Add the template to `templates/deploy.ts` in the `TEMPLATES` map
-4. Add a config entry in `templates/index.ts` with the run command and conventions
-5. Add the template to the `projectTemplates` array in `templates/index.ts` for the UI
-6. Deploy with `npm run templates:deploy -- mytemplate`
+1. Add the template to `templates/deploy.ts` in the `TEMPLATES` map
+2. Add a config entry in `templates/index.ts` with the run command and conventions
+3. Add the template to the `projectTemplates` array in `templates/index.ts` for the UI
+4. Deploy with `npm run templates:deploy -- mytemplate`
 
 ### Testing a template
 
